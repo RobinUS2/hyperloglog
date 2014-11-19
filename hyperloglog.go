@@ -9,6 +9,7 @@
 package hyperloglog
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -22,6 +23,58 @@ type HyperLogLog struct {
 	b         uint32  // Number of bits used to determine register index
 	alpha     float64 // Bias correction constant
 	registers []uint8
+}
+
+// Data to serialize
+func (h *HyperLogLog) SerializeData() DataObj {
+	var m = DataObj{}
+	m.M = h.m
+	m.B = h.b
+	m.A = h.alpha
+	reg := make([]int, len(h.registers))
+	for i, v := range h.registers {
+		reg[i] = int(v)
+	}
+	m.R = reg
+	return m
+}
+
+// Serialize
+func (h *HyperLogLog) Serialize() string {
+	var m DataObj = h.SerializeData()
+	b, err := json.Marshal(m)
+	if err != nil {
+		fmt.Println("error:", err)
+		return ""
+	}
+	return string(b)
+}
+
+type DataObj struct {
+	M uint
+	B uint32
+	A float64
+	R []int
+}
+
+// Unserialize
+func (h *HyperLogLog) Unserialize(str string) {
+	var m DataObj
+	err := json.Unmarshal([]byte(str), &m)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	reg := make([]uint8, len(m.R))
+	for i, v := range m.R {
+		reg[i] = uint8(v)
+	}
+
+	// Load object
+	h.m = m.M
+	h.b = m.B
+	h.alpha = m.A
+	h.registers = reg
 }
 
 // Compute bias correction alpha_m.
@@ -81,8 +134,14 @@ func rho(val uint32, max uint32) uint8 {
 // good hash function.
 func (h *HyperLogLog) Add(val uint32) {
 	k := 32 - h.b
+
+	// Determine register value
 	r := rho(val<<h.b, k)
+
+	// Determine register index
 	j := val >> uint(k)
+
+	// Increase register value if the value of the leftmost 1-bit is higher than the old value in the register
 	if r > h.registers[j] {
 		h.registers[j] = r
 	}
@@ -116,6 +175,7 @@ func (h *HyperLogLog) Count() uint64 {
 
 // Merge another HyperLogLog into this one. The number of registers in
 // each must be the same.
+// Add up two hyperlogslogs, basically the UNION
 func (h1 *HyperLogLog) Merge(h2 *HyperLogLog) error {
 	if h1.m != h2.m {
 		return fmt.Errorf("number of registers doesn't match: %d != %d",
@@ -127,4 +187,34 @@ func (h1 *HyperLogLog) Merge(h2 *HyperLogLog) error {
 		}
 	}
 	return nil
+}
+
+// Calculate the intersect count (overlap)
+// effectively doing |A INTERSECT B| = |A| + |B| - |A UNION B|
+func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (*HyperLogLog, error) {
+	if h1.m != h2.m {
+		return nil, fmt.Errorf("number of registers doesn't match: %d != %d",
+			h1.m, h2.m)
+	}
+
+	// Merged, union of the two inputs
+	merged, mergeErr := New(h1.m)
+	intersect, intersectErr := New(h1.m)
+	if mergeErr != nil {
+		return nil, mergeErr
+	} else if intersectErr != nil {
+		return nil, intersectErr
+	}
+
+	// Merge inputs
+	merged.Merge(h1)
+	merged.Merge(h2)
+
+	// Apply logic
+	for j, _ := range h2.registers {
+		// |A INTERSECT B| = |A| + |B| - |A UNION B|
+		// All registers are unsigned (thus absolute) 8-bit integers
+		intersect.registers[j] = (h1.registers[j] + h2.registers[j]) - merged.registers[j]
+	}
+	return intersect, nil
 }
