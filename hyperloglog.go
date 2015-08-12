@@ -210,8 +210,16 @@ func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (uint64, error) {
 	// Union count
 	unionCount := merged.Count()
 
+	// Cumulative count
+	cumulativeCount := h1.Count() + h2.Count()
+
+	// Integer overflow (as it is all estimates)
+	if unionCount > cumulativeCount {
+		return 0, nil
+	}
+
 	// Intersect
-	intersectCount := (h1.Count() + h2.Count()) - unionCount
+	intersectCount := cumulativeCount - unionCount
 
 	return intersectCount, nil
 }
