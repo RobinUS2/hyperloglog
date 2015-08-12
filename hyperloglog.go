@@ -212,6 +212,6 @@ func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (uint64, error) {
 
 	// Intersect
 	intersectCount := (h1.Count() + h2.Count()) - unionCount
-	
+
 	return intersectCount, nil
 }

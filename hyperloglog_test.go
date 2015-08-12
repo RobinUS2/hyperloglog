@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"math"
-	"os"
 	"log"
+	"math"
+	"math/rand"
+	"os"
 	"testing"
+	"time"
 )
 
 // Return a dictionary up to n words. If n is zero, return the entire
@@ -85,7 +87,64 @@ func TestHyperLogLogBig(t *testing.T) {
 	testHyperLogLog(t, 0, 4, 17)
 }
 
-func TestHyperLogLogIntersect(t *testing.T) {
+var src = rand.NewSource(time.Now().UnixNano())
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+func randStringBytesMaskImprSrc(n int) string {
+	b := make([]byte, n)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
+}
+
+func TestHyperLogLogIntersectLarge(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	runs := uint64(10000000)
+	registerSize := uint(2048)
+
+	a, _ := New(registerSize)
+	b, _ := New(registerSize)
+	hash := fnv.New32()
+
+	for i := uint64(0); i < runs; i++ {
+		hash.Write([]byte(randStringBytesMaskImprSrc(10)))
+		s := hash.Sum32()
+		a.Add(s)
+		if i%2 == 0 {
+			b.Add(s)
+		}
+		hash.Reset()
+	}
+
+	intersected, _ := a.Intersect(b)
+	maxIntersect := (float64(runs) / 2) * 1.022
+	minIntersect := (float64(runs) / 2) * 0.988
+
+	if float64(intersected) > maxIntersect || float64(intersected) < minIntersect {
+		log.Printf("Intersect exceeded deviation bounderies (min: %f max: %f result: %d)", minIntersect, maxIntersect, intersected)
+		t.Fail()
+	}
+}
+
+func TestHyperLogLogIntersectSmall(t *testing.T) {
 	a, _ := New(2048)
 	b, _ := New(2048)
 

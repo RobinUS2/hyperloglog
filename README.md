@@ -15,8 +15,8 @@ For documentation see http://godoc.org/github.com/eclesh/hyperloglog
 Quick start
 ===========
 
-	$ go get github.com/eclesh/hyperloglog
-	$ cd $GOPATH/src/github.com/eclesh/hyperloglog
+	$ go get github.com/flxReinoud/hyperloglog
+	$ cd $GOPATH/src/github.com/flxReinoud/hyperloglog
 	$ go test -test.v
 	$ go test -bench=.
 
