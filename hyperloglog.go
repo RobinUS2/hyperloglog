@@ -220,6 +220,6 @@ func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (uint64, error) {
 
 	// Intersect
 	intersectCount := cumulativeCount - unionCount
-	
+
 	return intersectCount, nil
 }
