@@ -98,6 +98,13 @@ func TestHyperLogLogIntersect(t *testing.T) {
 	b.Add(s)
 	hash.Reset()
 
+	// Beer in both
+	hash.Write([]byte("beer"))
+	s = hash.Sum32()
+	a.Add(s)
+	b.Add(s)
+	hash.Reset()
+
 	// Banana in a
 	hash.Write([]byte("banana"))
 	s = hash.Sum32()
@@ -111,10 +118,7 @@ func TestHyperLogLogIntersect(t *testing.T) {
 	hash.Reset()
 
 	intersected, _ := a.Intersect(b)
-	if intersected != nil {
-		// @todo finish
-		log.Printf("%d", intersected.Count())
-	}
+	log.Printf("%d", intersected)
 }
 
 func benchmarkCount(b *testing.B, registers int) {

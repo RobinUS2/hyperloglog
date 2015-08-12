@@ -190,31 +190,28 @@ func (h1 *HyperLogLog) Merge(h2 *HyperLogLog) error {
 }
 
 // Calculate the intersect count (overlap)
-// effectively doing |A INTERSECT B| = |A| + |B| - |A UNION B|
-func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (*HyperLogLog, error) {
+// effectively doing |A UNION B| = |A| + |B| - |A INTERSECT B|
+func (h1 *HyperLogLog) Intersect(h2 *HyperLogLog) (uint64, error) {
 	if h1.m != h2.m {
-		return nil, fmt.Errorf("number of registers doesn't match: %d != %d",
+		return 0, fmt.Errorf("number of registers doesn't match: %d != %d",
 			h1.m, h2.m)
 	}
 
 	// Merged, union of the two inputs
 	merged, mergeErr := New(h1.m)
-	intersect, intersectErr := New(h1.m)
 	if mergeErr != nil {
-		return nil, mergeErr
-	} else if intersectErr != nil {
-		return nil, intersectErr
+		return 0, mergeErr
 	}
 
 	// Merge inputs
 	merged.Merge(h1)
 	merged.Merge(h2)
 
-	// Apply logic
-	for j, _ := range h2.registers {
-		// |A INTERSECT B| = |A| + |B| - |A UNION B|
-		// All registers are unsigned (thus absolute) 8-bit integers
-		intersect.registers[j] = (h1.registers[j] + h2.registers[j]) - merged.registers[j]
-	}
-	return intersect, nil
+	// Union count
+	unionCount := merged.Count()
+
+	// Intersect
+	intersectCount := (h1.Count() + h2.Count()) - unionCount
+	
+	return intersectCount, nil
 }
