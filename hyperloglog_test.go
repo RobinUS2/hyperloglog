@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"log"
 	"testing"
 )
 
@@ -82,6 +83,38 @@ func TestHyperLogLogSmall(t *testing.T) {
 
 func TestHyperLogLogBig(t *testing.T) {
 	testHyperLogLog(t, 0, 4, 17)
+}
+
+func TestHyperLogLogIntersect(t *testing.T) {
+	a, _ := New(2048)
+	b, _ := New(2048)
+
+	hash := fnv.New32()
+
+	// Apple in both
+	hash.Write([]byte("apple"))
+	s := hash.Sum32()
+	a.Add(s)
+	b.Add(s)
+	hash.Reset()
+
+	// Banana in a
+	hash.Write([]byte("banana"))
+	s = hash.Sum32()
+	a.Add(s)
+	hash.Reset()
+
+	// Pineapple in a
+	hash.Write([]byte("pineapple"))
+	s = hash.Sum32()
+	b.Add(s)
+	hash.Reset()
+
+	intersected, _ := a.Intersect(b)
+	if intersected != nil {
+		// @todo finish
+		log.Printf("%d", intersected.Count())
+	}
 }
 
 func benchmarkCount(b *testing.B, registers int) {
