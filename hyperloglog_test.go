@@ -118,7 +118,35 @@ func TestHyperLogLogIntersect(t *testing.T) {
 	hash.Reset()
 
 	intersected, _ := a.Intersect(b)
-	log.Printf("%d", intersected)
+	log.Printf("intersect %d", intersected)
+}
+
+func TestHyperLogLogIntersectNone(t *testing.T) {
+	a, _ := New(2048)
+	b, _ := New(2048)
+
+	hash := fnv.New32()
+
+	// Apple in both
+	hash.Write([]byte("apple"))
+	s := hash.Sum32()
+	a.Add(s)
+	hash.Reset()
+
+	// Beer in both
+	hash.Write([]byte("beer"))
+	s = hash.Sum32()
+	a.Add(s)
+	hash.Reset()
+
+	// Banana in a
+	hash.Write([]byte("banana"))
+	s = hash.Sum32()
+	a.Add(s)
+	hash.Reset()
+
+	intersected, _ := a.Intersect(b)
+	log.Printf("none %d", intersected)
 }
 
 func benchmarkCount(b *testing.B, registers int) {
